@@ -17,9 +17,8 @@ const server = net.createServer((socket) => {
     })
 })
 
-server.on('error', (err) => {
-    console.error(`Server error: ${err}`)
-})
+
+
 
 server.listen(options, () => {
     console.log(`Server listening on host: ${options.host} and port: ${options.port}`)
