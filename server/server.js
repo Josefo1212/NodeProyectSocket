@@ -1,4 +1,5 @@
 import net from 'net'
+import { deserializarPeticion, serializarRespuesta } from './comunicationServer.js'
 
 const options = {
     port: 3000,
@@ -89,15 +90,15 @@ const server = net.createServer((socket) => {
     socket.on('data', (data) => {
         let request
         try {
-            request = JSON.parse(String(data))
+            request = deserializarPeticion(data)
         } catch (error) {
             const response = { operacion: null, resultado: null, error: 'JSON invalido' }
-            socket.write(JSON.stringify(response))
+            socket.write(serializarRespuesta(response))
             return
         }
 
         const response = executeOperation(request)
-        socket.write(JSON.stringify(response))
+        socket.write(serializarRespuesta(response))
     })
 
     socket.on('error', (err)=>{

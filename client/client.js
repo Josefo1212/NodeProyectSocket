@@ -1,5 +1,6 @@
 import net from 'net'
 import readline from 'readline'
+import { serializarPeticion, deserializarRespuesta } from './comunicationClient.js'
 
 const options = {
     port: 3000,
@@ -51,13 +52,13 @@ const client = net.createConnection(options, async () => {
     console.log('Connected to server')
 
     const request = await promptRequest()
-    client.write(JSON.stringify(request))
+    client.write(serializarPeticion(request))
 })
 
 client.on('data', (data) => {
     let response
     try {
-        response = JSON.parse(String(data))
+        response = deserializarRespuesta(data)
     } catch (error) {
         console.error('No se pudo leer la respuesta del servidor')
         client.end()
