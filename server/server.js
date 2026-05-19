@@ -32,20 +32,22 @@ const executeOperation = (request) => {
     }
 
     const operation = registry.resolveOperation(request?.operacion);
-    const a = toNumber(request?.a);
-    const b = toNumber(request?.b);
+    const rawParams = Array.isArray(request?.parametros)
+        ? request.parametros
+        : [request?.a, request?.b];
+    const parametros = rawParams.map((value) => toNumber(value));
 
     // Si no se encuentra la operacion, o los valores no son validos, devolvemos un error indicando el problema
     if (!operation) {
         return { operacion: request?.operacion ?? null, resultado: null, error: 'Operacion invalida' };
     }
-    if (a === null || b === null) {
+    if (parametros.length < 2 || parametros.some((value) => value === null)) {
         return { operacion: operation.id, resultado: null, error: 'Valores invalidos' };
     }
 
     // Si todo es valido, ejecutamos la operacion y devolvemos el resultado, manejando cualquier error que pueda ocurrir durante la ejecucion
     try {
-        const result = operation.execute(a, b);
+        const result = operation.execute(parametros);
         const mensaje = operation.message || 'Operacion realizada con exito';
 
         return { operacion: operation.id, resultado: result, error: null, mensaje };

@@ -11,7 +11,7 @@ const parseNumber = (value) => {
     return Number.isFinite(parsed) ? parsed : null;
 };
 
-// Pide la operacion y los dos valores al usuario
+// Pide la operacion y la cantidad de valores al usuario
 export const promptRequest = async (operations = []) => {
     const rl = readline.createInterface({
         // Usamos readline para pedir datos al usuario por consola
@@ -29,14 +29,20 @@ export const promptRequest = async (operations = []) => {
         if (operacion.toLowerCase() === 'salir') {
             return { operacion };
         }
-        // Pedimos los valores A y B, intentando convertirlos a numero, si no son validos se envian como null
-        const aInput = await askQuestion(rl, 'Valor A: ');
-        const bInput = await askQuestion(rl, 'Valor B: ');
-        
-        const a = parseNumber(aInput);
-        const b = parseNumber(bInput);
+        let cantidad = null;
+        while (cantidad === null || cantidad < 2) {
+            const cantidadInput = await askQuestion(rl, 'Cantidad de parametros (minimo 2): ');
+            const parsedCantidad = parseInt(cantidadInput, 10);
+            cantidad = Number.isInteger(parsedCantidad) ? parsedCantidad : null;
+        }
 
-        return { operacion, a, b };
+        const parametros = [];
+        for (let i = 0; i < cantidad; i += 1) {
+            const valueInput = await askQuestion(rl, `Valor ${i + 1}: `);
+            parametros.push(parseNumber(valueInput));
+        }
+
+        return { operacion, parametros };
     } finally {
         rl.close();
     }
