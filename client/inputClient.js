@@ -1,49 +1,71 @@
 import readline from 'readline';
 
-// Envuelve rl.question en una promesa para usar await
+let menuItems = [];
+
+const createInterface = () => readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
 const askQuestion = (rl, question) => new Promise((resolve) => {
     rl.question(question, (answer) => resolve(answer));
 });
 
-// Intenta convertir a numero y devuelve null si no es valido
-const parseNumber = (value) => {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
+const buildMenu = (catalog) => {
+    menuItems = [];
+    (catalog ?? []).forEach((classRecord) => {
+        const className = classRecord.name;
+        const methods = Array.isArray(classRecord.methods) ? classRecord.methods : [];
+        methods.forEach((method) => {
+            menuItems.push({ clase: className, metodo: method });
+        });
+    });
 };
 
-// Pide la operacion y la cantidad de valores al usuario
-export const promptRequest = async (operations = []) => {
-    const rl = readline.createInterface({
-        // Usamos readline para pedir datos al usuario por consola
-        input: process.stdin,
-        output: process.stdout
+const printMenu = () => {
+    console.log('Menu:');
+    menuItems.forEach((item, index) => {
+        console.log(`${index + 1}. ${item.clase} -> ${item.metodo}`);
     });
+    console.log('0. Salir');
+};
 
-    // permite salir escribiendo "salir" como operacion
+const parseParametros = (input) => input
+    .split(' ')
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+export const promptRequest = async () => {
+    if (menuItems.length === 0) {
+        console.log('Catalogo vacio.');
+        return { salir: true };
+    }
+
+    const rl = createInterface();
     try {
-        // Si el servidor nos dio una lista de operaciones, la mostramos al usuario
-        const operationsLabel = operations.length > 0
-            ? `Operacion (${operations.join(', ')}): `
-            : 'Operacion: ';
-        const operacion = (await askQuestion(rl, operationsLabel)).trim();
-        if (operacion.toLowerCase() === 'salir') {
-            return { operacion };
-        }
-        let cantidad = null;
-        while (cantidad === null || cantidad < 2) {
-            const cantidadInput = await askQuestion(rl, 'Cantidad de parametros (minimo 2): ');
-            const parsedCantidad = parseInt(cantidadInput, 10);
-            cantidad = Number.isInteger(parsedCantidad) ? parsedCantidad : null;
-        }
+        while (true) {
+            printMenu();
+            const choiceInput = await askQuestion(rl, 'Selecciona una opcion: ');
+            const choice = Number.parseInt(choiceInput, 10);
 
-        const parametros = [];
-        for (let i = 0; i < cantidad; i += 1) {
-            const valueInput = await askQuestion(rl, `Valor ${i + 1}: `);
-            parametros.push(parseNumber(valueInput));
-        }
+            if (Number.isNaN(choice) || choice < 0 || choice > menuItems.length) {
+                console.log('Opcion invalida.');
+                continue;
+            }
 
-        return { operacion, parametros };
+            if (choice === 0) {
+                return { salir: true };
+            }
+
+            const selected = menuItems[choice - 1];
+            const paramsInput = await askQuestion(rl, 'Parametros (separados por espacios): ');
+            const parametros = parseParametros(paramsInput);
+
+            return { clase: selected.clase, metodo: selected.metodo, parametros };
+        }
     } finally {
         rl.close();
     }
 };
+
+export { buildMenu };

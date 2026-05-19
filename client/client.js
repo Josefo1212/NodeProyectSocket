@@ -1,97 +1,90 @@
 
 import net from 'net';
-import { serializarPeticion, deserializarRespuesta } from './comunicationClient.js';
-import { promptRequest } from './inputClient.js';
+import { serializeRequest, deserializeResponse } from './comunicationClient.js';
+import { buildMenu, promptRequest } from './inputClient.js';
 
-//puertos definidos
-const options = {
-    port: 3000,
-    host: 'localhost'
+let client = null;
+let buffer = '';
+
+const sendRequest = (payload) => {
+    const frame = serializeRequest(payload);
+    console.log('[TX]', JSON.stringify(payload));
+    client.write(frame);
 };
 
-// Formatea la respuesta del servidor para mostrarla al usuario
-// defino el formatResponse para transformar el objeto de respuesta del servidor en un texto legible
-const formatResponse = (response) => {
-    if (!response || typeof response !== 'object') {
-        return 'Respuesta invalida';
-    }
-
-    if (response.tipo === 'list') {
-        return null;
-    }
-
-    if (response.error) {
-        return `Operacion: ${response.operacion ?? 'N/A'} | Error: ${response.error}`;
-    }
-
-    let msg = `Operacion: ${response.operacion ?? 'N/A'} | Resultado: ${response.resultado}`;
-    if (response.mensaje) {
-        msg += ` | ${response.mensaje}`;
-    }
-    return msg;
+const requestCatalog = () => {
+    sendRequest({ tipo: 'catalog' });
 };
 
-
-// Abre la conexion TCP y arranca el primer pedido
-const client = net.createConnection(options, () => {
-    console.log('Connected to server');
-    requestOperations();
-});
-
-let availableOperations = [];
-
-// Solicita al servidor la lista de operaciones disponibles, que se muestra al usuario al pedir la operacion a realizar
-const requestOperations = () => {
-    const request = { tipo: 'list' };
-    client.write(serializarPeticion(request));
-};
-
-// Pide datos al usuario y envia la peticion al servidor
-async function handleRequest() {
-    // Si el servidor nos dio una lista de operaciones, la mostramos al usuario
-    const request = await promptRequest(availableOperations);
-    // Permitir salir escribiendo "salir" como operación
-    if (request.operacion && request.operacion.trim().toLowerCase() === 'salir') {
-        client.end();
-        return;
-    }
-    client.write(serializarPeticion(request));
-}
-
-// Recibe la respuesta del servidor y vuelve a pedir otra operacion.
-client.on('data', (data) => {
-    let response;
-    // Convertimos la respuesta del servidor a un objeto, si falla cerramos la conexión
+const handleDataMessage = async (rawMessage) => {
+    let respuesta;
     try {
-        response = deserializarRespuesta(data);
+        respuesta = deserializeResponse(rawMessage);
     } catch (error) {
         console.error('No se pudo leer la respuesta del servidor');
         client.end();
         return;
     }
-    if (response?.tipo === 'list') {
-        availableOperations = Array.isArray(response.operaciones)
-            ? response.operaciones
-            : [];
-        handleRequest();
+
+    if (respuesta?.tipo === 'catalog') {
+        const catalog = Array.isArray(respuesta.clases) ? respuesta.clases : [];
+        buildMenu(catalog);
+    } else {
+        console.log('\n--------------------------------------------------');
+        if (respuesta?.error) {
+            console.log(`❌ Error en la operación: ${respuesta.error}`);
+        } else {
+            console.log(`✅ El resultado de la operación fue: ${respuesta?.resultado}`);
+        }
+        console.log('--------------------------------------------------\n');
+    }
+
+    const nextRequest = await promptRequest();
+    if (nextRequest?.salir) {
+        client.end();
         return;
     }
-
-    // Formateamos la respuesta del servidor y la mostramos al usuario
-    const message = formatResponse(response);
-    if (message) {
-        console.log(message);
+    if (nextRequest) {
+        sendRequest(nextRequest);
     }
-    // Volver a pedir otra operación
-    handleRequest();
-});
+};
 
-// Maneja errores de red del cliente
-client.on('error', (err) => {
-    console.error(`Client error: ${err}`)
-})
+const onData = (data) => {
+    buffer += data.toString();
 
-//ejecuta cuando el servidor cierra la conexión
-client.on('end', () => {
-    console.log('Disconnected from server')
-})
+    let boundary = buffer.indexOf('\n');
+    while (boundary !== -1) {
+        const rawMessage = buffer.slice(0, boundary).trim();
+        buffer = buffer.slice(boundary + 1);
+
+        if (rawMessage.length > 0) {
+            handleDataMessage(rawMessage);
+        }
+
+        boundary = buffer.indexOf('\n');
+    }
+};
+
+const startClient = (options) => {
+    client = net.createConnection(options, () => {
+        console.log('Connected to server');
+        requestCatalog();
+    });
+
+    client.on('data', (data) => onData(data));
+
+    client.on('error', (err) => {
+        console.error(`Client error: ${err.message}`);
+    });
+
+    client.on('end', () => {
+        console.log('Disconnected from server');
+    });
+};
+
+const options = {
+    port: 3000,
+    host: '127.0.0.1'
+};
+
+startClient(options);
