@@ -1,34 +1,13 @@
-import net from 'net'
-import { deserializarPeticion, serializarRespuesta } from './comunicationServer.js'
+import net from 'net';
+import { deserializarPeticion, serializarRespuesta } from './comunicationServer.js';
+import Calculator from './calculator.js';
 
 const options = {
     port: 3000,
     host: 'localhost'
-}
+};
 
-class Calculator {
-    add(a, b) {
-        return a + b
-    }
-
-    subtract(a, b) {
-        return a - b
-    }
-
-    multiply(a, b) {
-        return a * b
-    }
-
-    divide(a, b) {
-        if (b === 0) {
-            throw new Error('Division entre cero')
-        }
-
-        return a / b
-    }
-}
-
-const calculator = new Calculator()
+const calculator = new Calculator();
 
 const normalizeOperation = (operation) => {
     if (!operation) {
@@ -59,30 +38,43 @@ const toNumber = (value) => {
 }
 
 const executeOperation = (request) => {
-    const operation = normalizeOperation(request?.operacion)
-    const a = toNumber(request?.a)
-    const b = toNumber(request?.b)
+    const operation = normalizeOperation(request?.operacion);
+    const a = toNumber(request?.a);
+    const b = toNumber(request?.b);
 
     if (!operation) {
-        return { operacion: request?.operacion ?? null, resultado: null, error: 'Operacion invalida' }
+        return { operacion: request?.operacion ?? null, resultado: null, error: 'Operacion invalida' };
     }
 
     if (a === null || b === null) {
-        return { operacion: operation, resultado: null, error: 'Valores invalidos' }
+        return { operacion: operation, resultado: null, error: 'Valores invalidos' };
     }
 
     try {
-        let result
-        if (operation === 'suma') result = calculator.add(a, b)
-        if (operation === 'resta') result = calculator.subtract(a, b)
-        if (operation === 'multiplicacion') result = calculator.multiply(a, b)
-        if (operation === 'division') result = calculator.divide(a, b)
+        let result;
+        let mensaje = '';
+        if (operation === 'suma') {
+            result = calculator.add(a, b);
+            mensaje = 'Operacion suma realizada con exito';
+        }
+        if (operation === 'resta') {
+            result = calculator.subtract(a, b);
+            mensaje = 'Operacion resta realizada con exito';
+        }
+        if (operation === 'multiplicacion') {
+            result = calculator.multiply(a, b);
+            mensaje = 'Operacion multiplicacion realizada con exito';
+        }
+        if (operation === 'division') {
+            result = calculator.divide(a, b);
+            mensaje = 'Operacion division realizada con exito';
+        }
 
-        return { operacion: operation, resultado: result, error: null }
+        return { operacion: operation, resultado: result, error: null, mensaje };
     } catch (error) {
-        return { operacion: operation, resultado: null, error: error.message }
+        return { operacion: operation, resultado: null, error: error.message };
     }
-}
+};
 
 const server = net.createServer((socket) => {
     console.log('Client connected')
@@ -97,8 +89,9 @@ const server = net.createServer((socket) => {
             return
         }
 
-        const response = executeOperation(request)
-        socket.write(serializarRespuesta(response))
+        const response = executeOperation(request);
+        console.log('Respuesta enviada al cliente:', response);
+        socket.write(serializarRespuesta(response));
     })
 
     socket.on('error', (err)=>{
