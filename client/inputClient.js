@@ -14,12 +14,14 @@ const parseNumber = (value) => {
 // Pide la operacion y los dos valores al usuario
 export const promptRequest = async (operations = []) => {
     const rl = readline.createInterface({
+        // Usamos readline para pedir datos al usuario por consola
         input: process.stdin,
         output: process.stdout
     });
 
     // permite salir escribiendo "salir" como operacion
     try {
+        // Si el servidor nos dio una lista de operaciones, la mostramos al usuario
         const operationsLabel = operations.length > 0
             ? `Operacion (${operations.join(', ')}): `
             : 'Operacion: ';
@@ -27,6 +29,7 @@ export const promptRequest = async (operations = []) => {
         if (operacion.toLowerCase() === 'salir') {
             return { operacion };
         }
+        // Pedimos los valores A y B, intentando convertirlos a numero, si no son validos se envian como null
         const aInput = await askQuestion(rl, 'Valor A: ');
         const bInput = await askQuestion(rl, 'Valor B: ');
         

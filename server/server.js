@@ -25,6 +25,7 @@ const toNumber = (value) => {
 
 // Valida la peticion y ejecuta la operacion solicitada.
 const executeOperation = (request) => {
+    // Si el cliente pide la lista de operaciones, se la devolvemos sin intentar ejecutar nada
     if (request?.tipo === 'list') {
         const operations = registry.listOperations().map((operation) => operation.id);
         return { tipo: 'list', operaciones: operations };
@@ -34,14 +35,15 @@ const executeOperation = (request) => {
     const a = toNumber(request?.a);
     const b = toNumber(request?.b);
 
+    // Si no se encuentra la operacion, o los valores no son validos, devolvemos un error indicando el problema
     if (!operation) {
         return { operacion: request?.operacion ?? null, resultado: null, error: 'Operacion invalida' };
     }
-
     if (a === null || b === null) {
         return { operacion: operation.id, resultado: null, error: 'Valores invalidos' };
     }
 
+    // Si todo es valido, ejecutamos la operacion y devolvemos el resultado, manejando cualquier error que pueda ocurrir durante la ejecucion
     try {
         const result = operation.execute(a, b);
         const mensaje = operation.message || 'Operacion realizada con exito';
@@ -59,6 +61,7 @@ const server = net.createServer((socket) => {
     // Recibe la peticion, calcula y responde.
     socket.on('data', (data) => {
         let request
+        // convertimos la peticion del cliente a un objeto, si falla respondemos con un error indicando que el JSON es invalido
         try {
             request = deserializarPeticion(data)
         } catch (error) {
@@ -67,6 +70,7 @@ const server = net.createServer((socket) => {
             return
         }
 
+        // Ejecutamos la operacion solicitada y enviamos la respuesta al cliente, si ocurre un error durante la ejecucion se maneja dentro de executeOperation
         const response = executeOperation(request);
         console.log('Respuesta enviada al cliente:', response);
         socket.write(serializarRespuesta(response));
@@ -82,8 +86,6 @@ const server = net.createServer((socket) => {
         console.log('Client disconnected')
     })
 })
-
-
 
 
 // Arranca el servidor en el host y puerto indicados.

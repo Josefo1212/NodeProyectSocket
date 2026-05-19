@@ -40,6 +40,7 @@ const client = net.createConnection(options, () => {
 
 let availableOperations = [];
 
+// Solicita al servidor la lista de operaciones disponibles, que se muestra al usuario al pedir la operacion a realizar
 const requestOperations = () => {
     const request = { tipo: 'list' };
     client.write(serializarPeticion(request));
@@ -47,6 +48,7 @@ const requestOperations = () => {
 
 // Pide datos al usuario y envia la peticion al servidor
 async function handleRequest() {
+    // Si el servidor nos dio una lista de operaciones, la mostramos al usuario
     const request = await promptRequest(availableOperations);
     // Permitir salir escribiendo "salir" como operación
     if (request.operacion && request.operacion.trim().toLowerCase() === 'salir') {
@@ -59,6 +61,7 @@ async function handleRequest() {
 // Recibe la respuesta del servidor y vuelve a pedir otra operacion.
 client.on('data', (data) => {
     let response;
+    // Convertimos la respuesta del servidor a un objeto, si falla cerramos la conexión
     try {
         response = deserializarRespuesta(data);
     } catch (error) {
@@ -66,7 +69,6 @@ client.on('data', (data) => {
         client.end();
         return;
     }
-
     if (response?.tipo === 'list') {
         availableOperations = Array.isArray(response.operaciones)
             ? response.operaciones
@@ -75,6 +77,7 @@ client.on('data', (data) => {
         return;
     }
 
+    // Formateamos la respuesta del servidor y la mostramos al usuario
     const message = formatResponse(response);
     if (message) {
         console.log(message);

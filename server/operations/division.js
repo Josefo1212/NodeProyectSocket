@@ -6,6 +6,5 @@ export const execute = (a, b) => {
     if (b === 0) {
         throw new Error('Division entre cero');
     }
-
-    return a / b;
+    return a/b;
 };
