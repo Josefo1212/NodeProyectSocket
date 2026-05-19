@@ -1,4 +1,5 @@
 // parte de luismi
+// Convierte los bytes recibidos en un objeto de peticion
 export const deserializarPeticion = (dataBuffer) => {
     // El servidor recibe bytes, los pasamos a objeto para Lau
     return JSON.parse(String(dataBuffer));

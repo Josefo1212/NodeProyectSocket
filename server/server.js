@@ -1,29 +1,15 @@
 import net from 'net';
 import { deserializarPeticion, serializarRespuesta } from './comunicationServer.js';
-import Calculator from './calculator.js';
+import { loadOperations } from './operationRegistry.js';
 
 const options = {
     port: 3000,
     host: 'localhost'
 };
 
-const calculator = new Calculator();
+const registry = await loadOperations();
 
-const normalizeOperation = (operation) => {
-    if (!operation) {
-        return null
-    }
-
-    const value = String(operation).trim().toLowerCase()
-
-    if (value === 'suma' || value === '+') return 'suma'
-    if (value === 'resta' || value === '-') return 'resta'
-    if (value === 'multiplicacion' || value === '*') return 'multiplicacion'
-    if (value === 'division' || value === '/') return 'division'
-
-    return null
-}
-
+// Convierte valores a numero o devuelve null si no es valido
 const toNumber = (value) => {
     if (typeof value === 'number') {
         return Number.isFinite(value) ? value : null
@@ -37,8 +23,14 @@ const toNumber = (value) => {
     return null
 }
 
+// Valida la peticion y ejecuta la operacion solicitada.
 const executeOperation = (request) => {
-    const operation = normalizeOperation(request?.operacion);
+    if (request?.tipo === 'list') {
+        const operations = registry.listOperations().map((operation) => operation.id);
+        return { tipo: 'list', operaciones: operations };
+    }
+
+    const operation = registry.resolveOperation(request?.operacion);
     const a = toNumber(request?.a);
     const b = toNumber(request?.b);
 
@@ -47,38 +39,24 @@ const executeOperation = (request) => {
     }
 
     if (a === null || b === null) {
-        return { operacion: operation, resultado: null, error: 'Valores invalidos' };
+        return { operacion: operation.id, resultado: null, error: 'Valores invalidos' };
     }
 
     try {
-        let result;
-        let mensaje = '';
-        if (operation === 'suma') {
-            result = calculator.add(a, b);
-            mensaje = 'Operacion suma realizada con exito';
-        }
-        if (operation === 'resta') {
-            result = calculator.subtract(a, b);
-            mensaje = 'Operacion resta realizada con exito';
-        }
-        if (operation === 'multiplicacion') {
-            result = calculator.multiply(a, b);
-            mensaje = 'Operacion multiplicacion realizada con exito';
-        }
-        if (operation === 'division') {
-            result = calculator.divide(a, b);
-            mensaje = 'Operacion division realizada con exito';
-        }
+        const result = operation.execute(a, b);
+        const mensaje = operation.message || 'Operacion realizada con exito';
 
-        return { operacion: operation, resultado: result, error: null, mensaje };
+        return { operacion: operation.id, resultado: result, error: null, mensaje };
     } catch (error) {
-        return { operacion: operation, resultado: null, error: error.message };
+        return { operacion: operation.id, resultado: null, error: error.message };
     }
 };
 
+// Crea el servidor TCP y atiende cada cliente.
 const server = net.createServer((socket) => {
     console.log('Client connected')
 
+    // Recibe la peticion, calcula y responde.
     socket.on('data', (data) => {
         let request
         try {
@@ -94,10 +72,12 @@ const server = net.createServer((socket) => {
         socket.write(serializarRespuesta(response));
     })
 
+    // Maneja errores del socket del cliente
     socket.on('error', (err)=>{
         console.error(`Error: ${err}`)
     })
 
+    // Se ejecuta cuando el cliente se desconecta
     socket.on('end', ()=>{
         console.log('Client disconnected')
     })
@@ -106,6 +86,7 @@ const server = net.createServer((socket) => {
 
 
 
+// Arranca el servidor en el host y puerto indicados.
 server.listen(options, () => {
     console.log(`Server listening on host: ${options.host} and port: ${options.port}`)
 })
